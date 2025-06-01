@@ -1,2 +1,2 @@
 # compilador-java
-## Adicionar caminho do arquivo na variável path em MainCompiler
+### Em mainCompiler, passar diretório do arquivo de teste de acordo com o que deseja testar

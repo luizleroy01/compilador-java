@@ -5,7 +5,7 @@ import java.io.IOException;
 public class MainCompiler {
     public static void main(String args[]) throws IOException {
         CodeAnalyzer codeAnalyzer = new CodeAnalyzer();
-        String path = "";
+        String path = "src\\DataTests\\test5.txt";
         codeAnalyzer.analyze(path);
 
     }
