@@ -23,13 +23,14 @@ public class SemanticAnalyzer {
     }
 
     public void declareVariable(Token token, String type) {
-        if (currentEnv.get(token) != null) {
+        if (currentEnv.table.containsKey(token.getLexeme())) {
             semanticErrors.add("Erro semântico na linha " + token.getLine() +
-                    ": variável '" + token.getLexeme() + "' já declarada.");
+                    ": variável '" + token.getLexeme() + "' já declarada neste escopo.");
         } else {
             currentEnv.put(token, new Id(token, type));
         }
     }
+
 
     public void useVariable(Token token) {
         if (currentEnv.get(token) == null) {
@@ -48,7 +49,7 @@ public class SemanticAnalyzer {
     }
 
     public boolean areTypesCompatibleForAssignment(String varType, String exprType) {
-        if (varType.equals(exprType)) return true; // mesmo tipo
+        if (varType.equals(exprType)) return true;
 
         if (varType.equals("INT") && exprType.equals("CHAR")) return true; // CHAR → INT permitido (conversão para código ASCII)
         if (varType.equals("FLOAT") && exprType.equals("INT")) return true;
@@ -60,7 +61,7 @@ public class SemanticAnalyzer {
         return false;
     }
 
-    public String resultingType(String t1, String t2) {
+    public String resultingType(String t1, String t2, int line) {
         if (t1.equals(t2)) return t1;
 
         // INT + FLOAT → FLOAT
@@ -73,14 +74,17 @@ public class SemanticAnalyzer {
 
         // FLOAT + CHAR → ERRO
         if ((t1.equals("FLOAT") && t2.equals("CHAR")) || (t1.equals("CHAR") && t2.equals("FLOAT"))) {
-            semanticErrors.add("Erro semântico: tipos incompatíveis entre '" + t1 + "' e '" + t2 + "'");
+            semanticErrors.add(
+                    "Erro semântico na linha " + line +
+                            ": tipos incompatíveis entre '" + t1 + "' e '" + t2 + "'"
+            );
             return "ERRO";
         }
 
         return "ERRO";
     }
 
-    // Para registrar erros diretamente do Parser
+
     public void reportError(String message) {
         semanticErrors.add(message);
     }

@@ -4,8 +4,7 @@ import src.LexicalAnalyzer.Token;
 
 public class Id {
     private Token token;
-    private String type; // Tipo (int, float, char)
-    private int address; // Endereço de memória ou posição (se necessário)
+    private String type; // Tipos : int, float, char
 
     public Id(Token token, String type) {
         this.token = token;
@@ -18,10 +17,6 @@ public class Id {
 
     public String getType() {
         return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
     }
 
     @Override

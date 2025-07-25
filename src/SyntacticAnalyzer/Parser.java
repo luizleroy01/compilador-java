@@ -236,22 +236,26 @@ public class Parser {
     private String simpleExpr() {
         String t1 = term();
         while (peek().getType().equals("ADD_OP")) {
+            int line = peek().getLine();
             eat("ADD_OP");
             String t2 = term();
-            t1 = semantic.resultingType(t1, t2);
+            t1 = semantic.resultingType(t1, t2, line);
         }
         return t1;
     }
 
+
     private String term() {
         String t1 = factorA();
         while (peek().getType().equals("MUL_OP")) {
+            int line = peek().getLine();
             eat("MUL_OP");
             String t2 = factorA();
-            t1 = semantic.resultingType(t1, t2);
+            t1 = semantic.resultingType(t1, t2, line);
         }
         return t1;
     }
+
 
     private String factorA() {
         if (peek().getLexeme().equals("!")) {
