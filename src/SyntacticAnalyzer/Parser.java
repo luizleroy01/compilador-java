@@ -5,13 +5,18 @@ import src.LexicalAnalyzer.Token;
 import java.util.ArrayList;
 import java.util.List;
 
+import src.TableOfSymbols.Env;
+import src.TableOfSymbols.Id;
+
 public class Parser {
     private final List<Token> tokens;
     private int current = 0;
     private final List<String> foundErrors = new ArrayList<>();
+    private Env currentEnv; // Tabela de símbolos do escopo atual
 
     public Parser(List<Token> tokens) {
         this.tokens = tokens;
+        this.currentEnv = new Env(null); // Ambiente global
     }
 
     private Token peek() {
@@ -53,26 +58,48 @@ public class Parser {
     }
 
     private void decl() {
-        eat(peek().getType()); // INT, FLOAT ou CHAR
-        eat("SYMBOL");         // :
-        identList();
-        eat("SYMBOL");         // ;
+        String varType = peek().getType(); // INT, FLOAT ou CHAR
+        eat(varType);
+
+        eat("SYMBOL"); // : (se você separar os símbolos depois, mude para COLON)
+        identList(varType);
+        eat("SYMBOL"); // ; (mesma observação acima)
     }
 
-    private void identList() {
+    private void identList(String varType) {
+        Token idToken = peek();
         eat("IDENTIFIER");
+
+        // Coloca na Tabela de Símbolos
+        if (currentEnv.get(idToken) != null) {
+            foundErrors.add("Erro semântico na linha " + idToken.getLine() +
+                    ": variável '" + idToken.getLexeme() + "' já declarada.");
+        } else {
+            currentEnv.put(idToken, new Id(idToken, varType));
+        }
+
         while (peek().getLexeme().equals(",")) {
-            eat("SYMBOL");  // ,
+            eat("SYMBOL"); // ,
+            idToken = peek();
             eat("IDENTIFIER");
+
+            if (currentEnv.get(idToken) != null) {
+                foundErrors.add("Erro semântico na linha " + idToken.getLine() +
+                        ": variável '" + idToken.getLexeme() + "' já declarada.");
+            } else {
+                currentEnv.put(idToken, new Id(idToken, varType));
+            }
         }
     }
 
     private void stmtList() {
-        stmt();  // pelo menos um stmt obrigatório
+        enterScope(); // Novo escopo para o bloco
+        stmt();
         while (peek().getLexeme().equals(";")) {
             eat("SYMBOL");
             stmt();
         }
+        exitScope();
     }
 
     private void stmt() {
@@ -107,6 +134,13 @@ public class Parser {
     }
 
     private void assignStmt() {
+        Token idToken = peek();
+
+        if (currentEnv.get(idToken) == null) {
+            foundErrors.add("Erro semântico na linha " + idToken.getLine() +
+                    ": variável '" + idToken.getLexeme() + "' não declarada.");
+        }
+
         eat("IDENTIFIER");
         eat("ASSIGN_SYMBOL");
         simpleExpr();
@@ -264,6 +298,21 @@ public class Parser {
             String error = "Erro sintático na linha " + peek().getLine() + ": fator inválido '" + peek().getLexeme() + "'";
             foundErrors.add(error);
             throw new RuntimeException(error);
+        }
+    }
+    private void enterScope() {
+        currentEnv = new Env(currentEnv);
+    }
+
+    private void exitScope() {
+        currentEnv = currentEnv.prev;
+    }
+    public void printSymbolTable() {
+        System.out.println("\nTabela de Símbolos:");
+        Env env = currentEnv;
+        while (env != null) {
+            env.table.forEach((token, id) -> System.out.println(id));
+            env = env.prev;
         }
     }
 }
