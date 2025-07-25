@@ -1,6 +1,0 @@
-program
-int: x, y;
-begin
-  x = 10;
-  y = 20 @ 5;
-end

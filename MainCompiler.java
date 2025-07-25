@@ -8,7 +8,7 @@ import java.io.IOException;
 public class MainCompiler {
     public static void main(String args[]) throws IOException {
         CodeAnalyzer codeAnalyzer = new CodeAnalyzer();
-        String path = "src\\DataTests\\test5.txt";
+        String path = "src\\DataTests\\test4.txt";
         var tokens = codeAnalyzer.analyze(path);
 
         Parser parser = new Parser(tokens);

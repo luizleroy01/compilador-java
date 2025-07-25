@@ -1,5 +1,7 @@
 program
+
      float: raio, area$ = 0.0;
+
 begin
 repeat
    in(raio);

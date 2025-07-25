@@ -6,6 +6,7 @@
      in (a);
      in(b);
      if (a>b) then
+      int aux;
       aux = b;
       b = a;
       a = aux
