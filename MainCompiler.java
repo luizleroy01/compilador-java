@@ -1,25 +1,37 @@
 import src.LexicalAnalyzer.CodeAnalyzer;
-import src.LexicalAnalyzer.Token;
 import src.SyntacticAnalyzer.Parser;
-
+import src.SemanticAnalyzer.SemanticAnalyzer;
 
 import java.io.IOException;
 
 public class MainCompiler {
     public static void main(String args[]) throws IOException {
         CodeAnalyzer codeAnalyzer = new CodeAnalyzer();
-        //String path = "src\\DataTests\\test5.txt";
-        String path = "C:\\Users\\Usuario\\Desktop\\compilador-java-main\\compilador-java-main\\src\\DataTests\\test1.txt";
+        String path = "C:\\Users\\Usuario\\IdeaProjects\\compilador-java\\src\\DataTests\\test2.txt";
         var tokens = codeAnalyzer.analyze(path);
 
-        Parser parser = new Parser(tokens);
+        SemanticAnalyzer semantic = new SemanticAnalyzer();
+        Parser parser = new Parser(tokens, semantic);
+
         try {
             parser.program();
-            System.out.println("Análise sintática concluída com sucesso!");
-        } catch (Exception e) {
-            System.err.println("Erro na análise sintática: " + e.getMessage());
-        }
-        parser.printSymbolTable();
 
+            if (!parser.getSyntacticErrors().isEmpty()) {
+                System.out.println("\nErros Sintáticos:");
+                parser.getSyntacticErrors().forEach(System.out::println);
+            }
+
+            if (semantic.hasErrors()) {
+                System.out.println("\nErros Semânticos:");
+                semantic.getErrors().forEach(System.out::println);
+            } else {
+                System.out.println("\nAnálise concluída com sucesso!");
+            }
+
+            semantic.printSymbolTable();
+
+        } catch (Exception e) {
+            System.err.println("Erro durante a análise: " + e.getMessage());
+        }
     }
 }

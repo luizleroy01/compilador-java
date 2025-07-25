@@ -1,6 +1,7 @@
 package src.SyntacticAnalyzer;
 
 import src.LexicalAnalyzer.Token;
+import src.SemanticAnalyzer.SemanticAnalyzer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,11 +13,11 @@ public class Parser {
     private final List<Token> tokens;
     private int current = 0;
     private final List<String> foundErrors = new ArrayList<>();
-    private Env currentEnv; // Tabela de símbolos do escopo atual
+    private final SemanticAnalyzer semantic; // <<< NOVO
 
-    public Parser(List<Token> tokens) {
+    public Parser(List<Token> tokens, SemanticAnalyzer semantic) {
         this.tokens = tokens;
-        this.currentEnv = new Env(null); // Ambiente global
+        this.semantic = semantic;
     }
 
     private Token peek() {
@@ -58,48 +59,34 @@ public class Parser {
     }
 
     private void decl() {
-        String varType = peek().getType(); // INT, FLOAT ou CHAR
+        String varType = peek().getType();
         eat(varType);
-
-        eat("SYMBOL"); // : (se você separar os símbolos depois, mude para COLON)
+        eat("SYMBOL");
         identList(varType);
-        eat("SYMBOL"); // ; (mesma observação acima)
+        eat("SYMBOL");
     }
 
     private void identList(String varType) {
         Token idToken = peek();
         eat("IDENTIFIER");
-
-        // Coloca na Tabela de Símbolos
-        if (currentEnv.get(idToken) != null) {
-            foundErrors.add("Erro semântico na linha " + idToken.getLine() +
-                    ": variável '" + idToken.getLexeme() + "' já declarada.");
-        } else {
-            currentEnv.put(idToken, new Id(idToken, varType));
-        }
+        semantic.declareVariable(idToken, varType); // <<< AGORA COM SEMÂNTICO
 
         while (peek().getLexeme().equals(",")) {
-            eat("SYMBOL"); // ,
+            eat("SYMBOL");
             idToken = peek();
             eat("IDENTIFIER");
-
-            if (currentEnv.get(idToken) != null) {
-                foundErrors.add("Erro semântico na linha " + idToken.getLine() +
-                        ": variável '" + idToken.getLexeme() + "' já declarada.");
-            } else {
-                currentEnv.put(idToken, new Id(idToken, varType));
-            }
+            semantic.declareVariable(idToken, varType);
         }
     }
 
     private void stmtList() {
-        enterScope(); // Novo escopo para o bloco
+       // semantic.enterScope(); // <<< NOVO ESCOPO
         stmt();
         while (peek().getLexeme().equals(";")) {
             eat("SYMBOL");
             stmt();
         }
-        exitScope();
+      //  semantic.exitScope(); // <<< FIM DO ESCOPO
     }
 
     private void stmt() {
@@ -125,7 +112,7 @@ public class Parser {
                 stmt();
             }
         }else if(peek().getType().equals("UNTIL")){
-            return;
+            condition();// stmtSuffix();
         } else {
             String error = "Erro sintático na linha " + peek().getLine() + ": comando inválido '" + lexeme + "'";
             foundErrors.add(error);
@@ -135,16 +122,11 @@ public class Parser {
 
     private void assignStmt() {
         Token idToken = peek();
-
-        if (currentEnv.get(idToken) == null) {
-            foundErrors.add("Erro semântico na linha " + idToken.getLine() +
-                    ": variável '" + idToken.getLexeme() + "' não declarada.");
-        }
+        semantic.useVariable(idToken); // <<< VERIFICA SE FOI DECLARADO
 
         eat("IDENTIFIER");
         eat("ASSIGN_SYMBOL");
         simpleExpr();
-        eat("SYMBOL");
     }
 
     private void ifStmt() {
@@ -160,11 +142,12 @@ public class Parser {
 
         eat("THEN");
 
+        semantic.enterScope(); // <<< AGORA SIM CRIA UM NOVO ESCOPO
         if (peek().getLexeme().matches("int|float|char")) {
             declList();
         }
-
         stmtList();
+        semantic.exitScope(); // <<< FIM DO ESCOPO
 
         if (peek().getType().equals("ELSE")) {
             eat("ELSE");
@@ -287,6 +270,7 @@ public class Parser {
 
     private void factor() {
         if (peek().getType().equals("IDENTIFIER")) {
+            semantic.useVariable(peek()); // <<< VERIFICA ANTES DE USAR
             eat("IDENTIFIER");
         } else if (peek().getType().matches("INTEGER_CONST|FLOAT_CONST|CHAR_CONST")) {
             eat(peek().getType());
@@ -295,24 +279,13 @@ public class Parser {
             expression();
             eat("CLOSE_PAR");
         } else {
-            String error = "Erro sintático na linha " + peek().getLine() + ": fator inválido '" + peek().getLexeme() + "'";
+            String error = "Erro sintático na linha " + peek().getLine() +
+                    ": fator inválido '" + peek().getLexeme() + "'";
             foundErrors.add(error);
             throw new RuntimeException(error);
         }
     }
-    private void enterScope() {
-        currentEnv = new Env(currentEnv);
-    }
-
-    private void exitScope() {
-        currentEnv = currentEnv.prev;
-    }
-    public void printSymbolTable() {
-        System.out.println("\nTabela de Símbolos:");
-        Env env = currentEnv;
-        while (env != null) {
-            env.table.forEach((token, id) -> System.out.println(id));
-            env = env.prev;
-        }
+    public List<String> getSyntacticErrors() {
+        return foundErrors;
     }
 }
