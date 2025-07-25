@@ -6,14 +6,11 @@ import src.SemanticAnalyzer.SemanticAnalyzer;
 import java.util.ArrayList;
 import java.util.List;
 
-import src.TableOfSymbols.Env;
-import src.TableOfSymbols.Id;
-
 public class Parser {
     private final List<Token> tokens;
     private int current = 0;
     private final List<String> foundErrors = new ArrayList<>();
-    private final SemanticAnalyzer semantic; // <<< NOVO
+    private final SemanticAnalyzer semantic;
 
     public Parser(List<Token> tokens, SemanticAnalyzer semantic) {
         this.tokens = tokens;
@@ -69,7 +66,7 @@ public class Parser {
     private void identList(String varType) {
         Token idToken = peek();
         eat("IDENTIFIER");
-        semantic.declareVariable(idToken, varType); // <<< AGORA COM SEMÂNTICO
+        semantic.declareVariable(idToken, varType);
 
         while (peek().getLexeme().equals(",")) {
             eat("SYMBOL");
@@ -80,13 +77,11 @@ public class Parser {
     }
 
     private void stmtList() {
-       // semantic.enterScope(); // <<< NOVO ESCOPO
         stmt();
         while (peek().getLexeme().equals(";")) {
             eat("SYMBOL");
             stmt();
         }
-      //  semantic.exitScope(); // <<< FIM DO ESCOPO
     }
 
     private void stmt() {
@@ -104,15 +99,15 @@ public class Parser {
             readStmt();
         } else if (peek().getType().equals("OUT")) {
             writeStmt();
-        } else if(peek().getType().equals("ELSE")) {
+        } else if (peek().getType().equals("ELSE")) {
             eat("ELSE");
             if (peek().getType().equals("IF")) {
                 ifStmt();
             } else {
                 stmt();
             }
-        }else if(peek().getType().equals("UNTIL")){
-            condition();// stmtSuffix();
+        } else if (peek().getType().equals("UNTIL")) {
+            stmtSuffix();
         } else {
             String error = "Erro sintático na linha " + peek().getLine() + ": comando inválido '" + lexeme + "'";
             foundErrors.add(error);
@@ -122,11 +117,19 @@ public class Parser {
 
     private void assignStmt() {
         Token idToken = peek();
-        semantic.useVariable(idToken); // <<< VERIFICA SE FOI DECLARADO
+        semantic.useVariable(idToken);
+        String varType = semantic.getVariableType(idToken);
 
         eat("IDENTIFIER");
         eat("ASSIGN_SYMBOL");
-        simpleExpr();
+
+        String exprType = simpleExpr();
+
+        if (!semantic.areTypesCompatibleForAssignment(varType, exprType)) {
+            semantic.reportError("Erro semântico na linha " + idToken.getLine() +
+                    ": não é permitido atribuir um valor do tipo '" + exprType +
+                    "' para a variável do tipo '" + varType + "'");
+        }
     }
 
     private void ifStmt() {
@@ -142,12 +145,12 @@ public class Parser {
 
         eat("THEN");
 
-        semantic.enterScope(); // <<< AGORA SIM CRIA UM NOVO ESCOPO
+        semantic.enterScope();
         if (peek().getLexeme().matches("int|float|char")) {
             declList();
         }
         stmtList();
-        semantic.exitScope(); // <<< FIM DO ESCOPO
+        semantic.exitScope();
 
         if (peek().getType().equals("ELSE")) {
             eat("ELSE");
@@ -167,11 +170,9 @@ public class Parser {
 
     private void repeatStmt() {
         eat("REPEAT");
-
         if (peek().getLexeme().matches("int|float|char")) {
             declList();
         }
-
         stmtList();
         stmtSuffix();
     }
@@ -183,11 +184,9 @@ public class Parser {
 
     private void whileStmt() {
         stmtPrefix();
-
         if (peek().getLexeme().matches("int|float|char")) {
             declList();
         }
-
         stmtList();
         eat("END");
     }
@@ -201,6 +200,8 @@ public class Parser {
     private void readStmt() {
         eat("IN");
         eat("OPEN_PAR");
+        Token idToken = peek();
+        semantic.useVariable(idToken);
         eat("IDENTIFIER");
         eat("CLOSE_PAR");
     }
@@ -232,52 +233,62 @@ public class Parser {
         }
     }
 
-    private void simpleExpr() {
-        term();
-        simpleExprLinha();
-    }
-
-    private void simpleExprLinha() {
+    private String simpleExpr() {
+        String t1 = term();
         while (peek().getType().equals("ADD_OP")) {
             eat("ADD_OP");
-            term();
+            String t2 = term();
+            t1 = semantic.resultingType(t1, t2);
         }
+        return t1;
     }
 
-    private void term() {
-        factorA();
-        termLinha();
-    }
-
-    private void termLinha() {
+    private String term() {
+        String t1 = factorA();
         while (peek().getType().equals("MUL_OP")) {
             eat("MUL_OP");
-            factorA();
+            String t2 = factorA();
+            t1 = semantic.resultingType(t1, t2);
         }
+        return t1;
     }
 
-    private void factorA() {
+    private String factorA() {
         if (peek().getLexeme().equals("!")) {
-            eat("SYMBOL"); // ou outro tipo que você definiu
-            factor();
+            eat("SYMBOL");
+            return factor();
         } else if (peek().getLexeme().equals("-")) {
             eat("ADD_OP");
-            factor();
+            return factor();
         } else {
-            factor();
+            return factor();
         }
     }
 
-    private void factor() {
+    private String factor() {
         if (peek().getType().equals("IDENTIFIER")) {
-            semantic.useVariable(peek()); // <<< VERIFICA ANTES DE USAR
+            Token t = peek();
+            semantic.useVariable(t);
             eat("IDENTIFIER");
-        } else if (peek().getType().matches("INTEGER_CONST|FLOAT_CONST|CHAR_CONST")) {
-            eat(peek().getType());
+            return semantic.getVariableType(t);
+
+        } else if (peek().getType().equals("INTEGER_CONST")) {
+            eat("INTEGER_CONST");
+            return "INT";
+
+        } else if (peek().getType().equals("FLOAT_CONST")) {
+            eat("FLOAT_CONST");
+            return "FLOAT";
+
+        } else if (peek().getType().equals("CHAR_CONST")) {
+            eat("CHAR_CONST");
+            return "CHAR";
+
         } else if (peek().getType().equals("OPEN_PAR")) {
             eat("OPEN_PAR");
-            expression();
+            String type = simpleExpr();
             eat("CLOSE_PAR");
+            return type;
         } else {
             String error = "Erro sintático na linha " + peek().getLine() +
                     ": fator inválido '" + peek().getLexeme() + "'";
@@ -285,6 +296,7 @@ public class Parser {
             throw new RuntimeException(error);
         }
     }
+
     public List<String> getSyntacticErrors() {
         return foundErrors;
     }
