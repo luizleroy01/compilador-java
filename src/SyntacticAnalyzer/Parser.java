@@ -28,7 +28,7 @@ public class Parser {
         } else {
             String error = "Erro sintático na linha " + peek().getLine()
                     + ": esperado '" + expectedType + "', encontrado '" + peek().getLexeme() + "'";
-            foundErrors.add(error);
+            System.out.println(error);
             throw new RuntimeException(error);
         }
     }
@@ -39,11 +39,6 @@ public class Parser {
         eat("BEGIN");
         stmtList();
         eat("END");
-
-        if (!foundErrors.isEmpty()) {
-            System.out.println("Erros sintáticos encontrados:");
-            foundErrors.forEach(System.out::println);
-        }
     }
 
     private void declList() {
@@ -54,21 +49,21 @@ public class Parser {
 
     private void decl() {
         eat(peek().getType()); // INT, FLOAT ou CHAR
-        eat("SYMBOL");         // :
+        eat("SYMBOL");
         identList();
-        eat("SYMBOL");         // ;
+        eat("SYMBOL");
     }
 
     private void identList() {
         eat("IDENTIFIER");
         while (peek().getLexeme().equals(",")) {
-            eat("SYMBOL");  // ,
+            eat("SYMBOL");
             eat("IDENTIFIER");
         }
     }
 
     private void stmtList() {
-        stmt();  // pelo menos um stmt obrigatório
+        stmt();
         while (peek().getLexeme().equals(";")) {
             eat("SYMBOL");
             stmt();
@@ -80,28 +75,34 @@ public class Parser {
 
         if (peek().getType().equals("IDENTIFIER")) {
             assignStmt();
+            stmt();
         } else if (peek().getType().equals("IF")) {
             ifStmt();
+            stmt();
         } else if (peek().getType().equals("WHILE")) {
             whileStmt();
         } else if (peek().getType().equals("REPEAT")) {
             repeatStmt();
         } else if (peek().getType().equals("IN")) {
             readStmt();
+            stmt();
         } else if (peek().getType().equals("OUT")) {
             writeStmt();
-        } else if(peek().getType().equals("ELSE")) {
+            stmt();
+        } else if (peek().getType().equals("ELSE")) {
             eat("ELSE");
             if (peek().getType().equals("IF")) {
                 ifStmt();
             } else {
-                stmt();
+                stmtList();
             }
-        }else if(peek().getType().equals("UNTIL")){
+        } else if (peek().getType().equals("UNTIL")) {
             return;
+        } else if (peek().getType().equals("END")) {
+            //eat("END");
         } else {
             String error = "Erro sintático na linha " + peek().getLine() + ": comando inválido '" + lexeme + "'";
-            foundErrors.add(error);
+            System.out.println(error);
             throw new RuntimeException(error);
         }
     }
@@ -126,7 +127,7 @@ public class Parser {
 
         eat("THEN");
 
-        if (peek().getLexeme().matches("int|float|char")) {
+        if (peek().getType().matches("INT|FLOAT|CHAR")) {
             declList();
         }
 
@@ -138,7 +139,7 @@ public class Parser {
             if (peek().getType().equals("IF")) {
                 ifStmt();
             } else {
-                if (peek().getLexeme().matches("int|float|char")) {
+                if (peek().getType().matches("INT|FLOAT|CHAR")) {
                     declList();
                 }
                 stmtList();
@@ -151,23 +152,30 @@ public class Parser {
     private void repeatStmt() {
         eat("REPEAT");
 
-        if (peek().getLexeme().matches("int|float|char")) {
+        if (peek().getType().matches("INT|FLOAT|CHAR")) {
             declList();
         }
 
         stmtList();
-        stmtSuffix();
+        stmtSuffix(); // until condition (sem ponto e vírgula após)
     }
 
     private void stmtSuffix() {
         eat("UNTIL");
-        condition();
+
+        if (peek().getType().equals("OPEN_PAR")) {
+            eat("OPEN_PAR");
+            condition();
+            eat("CLOSE_PAR");
+        } else {
+            condition();
+        }
     }
 
     private void whileStmt() {
         stmtPrefix();
 
-        if (peek().getLexeme().matches("int|float|char")) {
+        if (peek().getType().matches("INT|FLOAT|CHAR")) {
             declList();
         }
 
@@ -186,6 +194,7 @@ public class Parser {
         eat("OPEN_PAR");
         eat("IDENTIFIER");
         eat("CLOSE_PAR");
+        eat("SYMBOL");
     }
 
     private void writeStmt() {
@@ -193,6 +202,7 @@ public class Parser {
         eat("OPEN_PAR");
         writable();
         eat("CLOSE_PAR");
+        eat("SYMBOL");
     }
 
     private void writable() {
@@ -217,10 +227,6 @@ public class Parser {
 
     private void simpleExpr() {
         term();
-        simpleExprLinha();
-    }
-
-    private void simpleExprLinha() {
         while (peek().getType().equals("ADD_OP")) {
             eat("ADD_OP");
             term();
@@ -229,10 +235,6 @@ public class Parser {
 
     private void term() {
         factorA();
-        termLinha();
-    }
-
-    private void termLinha() {
         while (peek().getType().equals("MUL_OP")) {
             eat("MUL_OP");
             factorA();
@@ -241,7 +243,7 @@ public class Parser {
 
     private void factorA() {
         if (peek().getLexeme().equals("!")) {
-            eat("SYMBOL"); // ou outro tipo que você definiu
+            eat("SYMBOL");
             factor();
         } else if (peek().getLexeme().equals("-")) {
             eat("ADD_OP");
@@ -262,7 +264,7 @@ public class Parser {
             eat("CLOSE_PAR");
         } else {
             String error = "Erro sintático na linha " + peek().getLine() + ": fator inválido '" + peek().getLexeme() + "'";
-            foundErrors.add(error);
+            System.out.println(error);
             throw new RuntimeException(error);
         }
     }
