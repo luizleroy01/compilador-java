@@ -106,7 +106,7 @@ public class Parser {
                 stmt();
             }
         } else if (peek().getType().equals("UNTIL")) {
-            condition();
+            stmtSuffix();
         } else {
             String error = "Erro sintático na linha " + peek().getLine() +
                     ": comando inválido '" + lexeme + "'";
