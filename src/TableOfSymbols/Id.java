@@ -3,24 +3,16 @@ package src.TableOfSymbols;
 import src.LexicalAnalyzer.Token;
 
 public class Id {
-    private Token token;
-    private String type; // Tipos : int, float, char
+    public String type;   // Tipo da variável (INT, FLOAT, CHAR)
+    public String name;   // Nome da variável (lexema)
 
     public Id(Token token, String type) {
-        this.token = token;
+        this.name = token.getLexeme();
         this.type = type;
-    }
-
-    public Token getToken() {
-        return token;
-    }
-
-    public String getType() {
-        return type;
     }
 
     @Override
     public String toString() {
-        return "Id(" + token.getLexeme() + ", tipo=" + type + ")";
+        return "Id(" + name + ", tipo=" + type + ")";
     }
 }

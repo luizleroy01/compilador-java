@@ -7,58 +7,44 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SemanticAnalyzer {
-    private Env currentEnv; // Escopo atual
+    private final Env globalEnv; // Somente um escopo global
     private final List<String> semanticErrors = new ArrayList<>();
 
     public SemanticAnalyzer() {
-        this.currentEnv = new Env(null); // Ambiente global
-    }
-
-    public void enterScope() {
-        currentEnv = new Env(currentEnv);
-    }
-
-    public void exitScope() {
-        currentEnv = currentEnv.prev;
+        this.globalEnv = new Env(null);
     }
 
     public void declareVariable(Token token, String type) {
-        if (currentEnv.table.containsKey(token.getLexeme())) {
+        if (globalEnv.get(token) != null) {
             semanticErrors.add("Erro semântico na linha " + token.getLine() +
-                    ": variável '" + token.getLexeme() + "' já declarada neste escopo.");
+                    ": variável '" + token.getLexeme() + "' já declarada.");
         } else {
-            currentEnv.put(token, new Id(token, type));
+            globalEnv.put(token, new Id(token, type));
         }
     }
 
-
     public void useVariable(Token token) {
-        if (currentEnv.get(token) == null) {
+        if (globalEnv.get(token) == null) {
             semanticErrors.add("Erro semântico na linha " + token.getLine() +
                     ": variável '" + token.getLexeme() + "' não declarada.");
         }
     }
 
-    // Recupera o tipo da variável
     public String getVariableType(Token token) {
-        Id id = currentEnv.get(token);
-        if (id != null) {
-            return id.getType();
-        }
-        return null;
+        Id id = globalEnv.get(token);
+        if (id != null) return id.type;
+        return "ERRO";
     }
 
-    public boolean areTypesCompatibleForAssignment(String varType, String exprType) {
-        if (varType.equals(exprType)) return true;
+    public void checkAssignmentType(Token var, String varType, String exprType) {
+        if (varType.equals(exprType)) return;
 
-        if (varType.equals("INT") && exprType.equals("CHAR")) return true; // CHAR → INT permitido (conversão para código ASCII)
-        if (varType.equals("FLOAT") && exprType.equals("INT")) return true;
+        if (varType.equals("FLOAT") && exprType.equals("INT")) return;
+        if (varType.equals("INT") && exprType.equals("CHAR")) return;
 
-        // Não pode atribuir FLOAT → INT ou FLOAT → CHAR
-        if (varType.equals("INT") && exprType.equals("FLOAT")) return false;
-        if (varType.equals("CHAR") && !exprType.equals("CHAR")) return false;
-
-        return false;
+        semanticErrors.add("Erro semântico na linha " + var.getLine() +
+                ": não é permitido atribuir um valor do tipo '" + exprType +
+                "' para a variável do tipo '" + varType + "'");
     }
 
     public String resultingType(String t1, String t2, int line) {
@@ -74,19 +60,12 @@ public class SemanticAnalyzer {
 
         // FLOAT + CHAR → ERRO
         if ((t1.equals("FLOAT") && t2.equals("CHAR")) || (t1.equals("CHAR") && t2.equals("FLOAT"))) {
-            semanticErrors.add(
-                    "Erro semântico na linha " + line +
-                            ": tipos incompatíveis entre '" + t1 + "' e '" + t2 + "'"
-            );
+            semanticErrors.add("Erro semântico na linha " + line +
+                    ": tipos incompatíveis entre '" + t1 + "' e '" + t2 + "'");
             return "ERRO";
         }
 
         return "ERRO";
-    }
-
-
-    public void reportError(String message) {
-        semanticErrors.add(message);
     }
 
     public boolean hasErrors() {
@@ -99,10 +78,6 @@ public class SemanticAnalyzer {
 
     public void printSymbolTable() {
         System.out.println("\nTabela de Símbolos:");
-        Env env = currentEnv;
-        while (env != null) {
-            env.getTable().forEach((token, id) -> System.out.println(id));
-            env = env.prev;
-        }
+        globalEnv.getTable().forEach((token, id) -> System.out.println(id));
     }
 }

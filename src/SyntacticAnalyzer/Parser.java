@@ -2,7 +2,6 @@ package src.SyntacticAnalyzer;
 
 import src.LexicalAnalyzer.Token;
 import src.SemanticAnalyzer.SemanticAnalyzer;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -107,9 +106,10 @@ public class Parser {
                 stmt();
             }
         } else if (peek().getType().equals("UNTIL")) {
-            stmtSuffix();
+            condition();
         } else {
-            String error = "Erro sintático na linha " + peek().getLine() + ": comando inválido '" + lexeme + "'";
+            String error = "Erro sintático na linha " + peek().getLine() +
+                    ": comando inválido '" + lexeme + "'";
             foundErrors.add(error);
             throw new RuntimeException(error);
         }
@@ -122,19 +122,13 @@ public class Parser {
 
         eat("IDENTIFIER");
         eat("ASSIGN_SYMBOL");
-
         String exprType = simpleExpr();
 
-        if (!semantic.areTypesCompatibleForAssignment(varType, exprType)) {
-            semantic.reportError("Erro semântico na linha " + idToken.getLine() +
-                    ": não é permitido atribuir um valor do tipo '" + exprType +
-                    "' para a variável do tipo '" + varType + "'");
-        }
+        semantic.checkAssignmentType(idToken, varType, exprType);
     }
 
     private void ifStmt() {
         eat("IF");
-
         if (peek().getType().equals("OPEN_PAR")) {
             eat("OPEN_PAR");
             condition();
@@ -142,19 +136,15 @@ public class Parser {
         } else {
             condition();
         }
-
         eat("THEN");
 
-        semantic.enterScope();
         if (peek().getLexeme().matches("int|float|char")) {
             declList();
         }
         stmtList();
-        semantic.exitScope();
 
         if (peek().getType().equals("ELSE")) {
             eat("ELSE");
-
             if (peek().getType().equals("IF")) {
                 ifStmt();
             } else {
@@ -164,7 +154,6 @@ public class Parser {
                 stmtList();
             }
         }
-
         eat("END");
     }
 
@@ -225,37 +214,36 @@ public class Parser {
         expression();
     }
 
-    private void expression() {
-        simpleExpr();
+    private String expression() {
+        String t1 = simpleExpr();
         if (peek().getType().equals("REL_OP")) {
             eat("REL_OP");
-            simpleExpr();
+            String t2 = simpleExpr();
+            semantic.resultingType(t1, t2, peek().getLine());
+            return "BOOL";
         }
+        return t1;
     }
 
     private String simpleExpr() {
         String t1 = term();
         while (peek().getType().equals("ADD_OP")) {
-            int line = peek().getLine();
             eat("ADD_OP");
             String t2 = term();
-            t1 = semantic.resultingType(t1, t2, line);
+            t1 = semantic.resultingType(t1, t2, peek().getLine());
         }
         return t1;
     }
-
 
     private String term() {
         String t1 = factorA();
         while (peek().getType().equals("MUL_OP")) {
-            int line = peek().getLine();
             eat("MUL_OP");
             String t2 = factorA();
-            t1 = semantic.resultingType(t1, t2, line);
+            t1 = semantic.resultingType(t1, t2, peek().getLine());
         }
         return t1;
     }
-
 
     private String factorA() {
         if (peek().getLexeme().equals("!")) {
@@ -275,22 +263,18 @@ public class Parser {
             semantic.useVariable(t);
             eat("IDENTIFIER");
             return semantic.getVariableType(t);
-
         } else if (peek().getType().equals("INTEGER_CONST")) {
             eat("INTEGER_CONST");
             return "INT";
-
         } else if (peek().getType().equals("FLOAT_CONST")) {
             eat("FLOAT_CONST");
             return "FLOAT";
-
         } else if (peek().getType().equals("CHAR_CONST")) {
             eat("CHAR_CONST");
             return "CHAR";
-
         } else if (peek().getType().equals("OPEN_PAR")) {
             eat("OPEN_PAR");
-            String type = simpleExpr();
+            String type = expression();
             eat("CLOSE_PAR");
             return type;
         } else {

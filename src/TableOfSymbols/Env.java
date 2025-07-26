@@ -1,9 +1,10 @@
 package src.TableOfSymbols;
 
-import src.LexicalAnalyzer.*;
-import java.util.*;
+import src.LexicalAnalyzer.Token;
+import java.util.Hashtable;
+
 public class Env {
-    public Hashtable<String, Id> table;
+    public Hashtable<Token, Id> table;
     public Env prev;
 
     public Env(Env n) {
@@ -12,21 +13,21 @@ public class Env {
     }
 
     public void put(Token w, Id i) {
-        table.put(w.getLexeme(), i);
+        table.put(w, i);
     }
 
     public Id get(Token w) {
         for (Env e = this; e != null; e = e.prev) {
-            Id found = e.table.get(w.getLexeme());
-            if (found != null)
-                return found;
+            for (Token key : e.table.keySet()) {
+                if (key.getLexeme().equals(w.getLexeme())) {
+                    return e.table.get(key);
+                }
+            }
         }
         return null;
     }
 
-    public Hashtable<String, Id> getTable() {
+    public Hashtable<Token, Id> getTable() {
         return table;
     }
 }
-
-

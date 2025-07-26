@@ -7,7 +7,7 @@ import java.io.IOException;
 public class MainCompiler {
     public static void main(String args[]) throws IOException {
         CodeAnalyzer codeAnalyzer = new CodeAnalyzer();
-        String path = "C:\\Users\\Usuario\\IdeaProjects\\compilador-java\\src\\DataTests\\test2.txt";
+        String path = "C:\\Users\\Usuario\\IdeaProjects\\compilador-java\\src\\DataTests\\testY.txt";
         var tokens = codeAnalyzer.analyze(path);
 
         SemanticAnalyzer semantic = new SemanticAnalyzer();
